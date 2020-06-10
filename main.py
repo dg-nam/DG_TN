@@ -84,8 +84,7 @@ def main():
                 pbar.update(batch_size)
                 pbar.set_description(f'Epoch {epoch + 1}/{num_epoch}' "[Step %d/%d]" % (step + 1, len(train_loader)))
                 global_step += 1
-                if step == 10:
-                    break
+
 
         lr_policy.step()
 
