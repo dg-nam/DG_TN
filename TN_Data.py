@@ -38,6 +38,7 @@ class TN_Dataset(data.Dataset):
         image = torch.from_numpy(image).type(torch.FloatTensor)
         mask = torch.from_numpy(mask).type(torch.FloatTensor)
         image = torch.unsqueeze(image, axis=0)
+        mask = torch.unsqueeze(mask, axis=0)
         output_dict = dict(img=image, mask=mask, ID=id, CATE=CATE, size=image_size)
 
         return output_dict
