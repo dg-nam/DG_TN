@@ -45,6 +45,7 @@ def seg_evaluate(model, val_loader, device):
             if isinstance(pred, list):
                 pred = pred[0]
 
+
             seg_score += dice_coeff(pred, Mask)
             IOU_score += TN_IOU(pred, Mask)
 
@@ -129,7 +130,7 @@ def main():
     global_step = 0
     best_seg_score = 0
     best_IOU_score = 0
-    if load_seg_model is None:
+    if load_seg_model is None and config.GT is False:
         for epoch in range(num_epochs):
             dataloader_model = iter(train_loader)
             epoch_loss = 0
@@ -139,7 +140,6 @@ def main():
                     Image = batch['img']
                     Mask = batch['mask']
                     Cate = batch['CATE']
-
                     Image = Image.to(device=device)
                     Mask = Mask.to(device=device)
 
@@ -180,9 +180,9 @@ def main():
     cls_optimizer = optim.Adam(cls_model.parameters(), lr=lr)
     cls_optimizer.zero_grad()
 
-    if load_seg_model is None:
+    if load_seg_model is None and config.GT is False:
         load_model(config.key + 'Seg_Best', seg_model)
-    else:
+    elif load_seg_model is not None:
         load_model(load_seg_model, seg_model)
 
     seg_model.eval()
