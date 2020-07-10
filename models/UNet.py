@@ -1,11 +1,11 @@
 from .DG_Module import *
 
-class UNet_TN(nn.Module):
-    def __init__(self, n_ch, n_classes, n_cl_classes, bilinear=True):
-        super(UNet_TN, self).__init__()
+
+class UNet(nn.Module):
+    def __init__(self, n_ch, n_classes, bilinear=True):
+        super(UNet, self).__init__()
         self.n_ch = n_ch
         self.n_classes = n_classes
-        self.n_cl_classes = n_cl_classes
         self.bilinear = bilinear
 
         self.inc = Residual_Block(n_ch, 64)
@@ -20,7 +20,6 @@ class UNet_TN(nn.Module):
         self.up4 = Up(128, 64, bilinear)
 
         self.out = Out(64, n_classes)
-        self.classification = Fully_connect(1, 16, 16)
 
     def forward(self, x):
         x1 = self.inc(x)
@@ -33,9 +32,7 @@ class UNet_TN(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
 
-        cla = self.classification(x5)
-
-        return self.out(x), cla
+        return self.out(x)
 
 
 

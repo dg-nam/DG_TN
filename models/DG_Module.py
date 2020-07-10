@@ -55,14 +55,74 @@ class Residual_Block(nn.Module):
         out = self.ReLU(x)
 
         return out
+class Dilated_res_Conv(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super().__init__()
+        self.in_ch = in_ch
+        self.out_ch = out_ch
+        if in_ch != out_ch:
+            self.tran_channels = nn.Conv2d(in_ch, out_ch, kernel_size=1, stride=1, padding=0)
+
+        mid_ch_1 = int(out_ch / 2)
+        mid_ch_2 = int(out_ch / 4)
+        mid_ch_3 = int(out_ch / 8)
+        mid_ch_4 = int(out_ch / 16)
+
+        self.conv33 = nn.Sequential(nn.Conv2d(out_ch, mid_ch_1, kernel_size=3, padding=1),
+                                    nn.BatchNorm2d(mid_ch_1),
+                                    nn.ReLU())
+        self.dil_conv1 = nn.Sequential(nn.Conv2d(out_ch, mid_ch_2, kernel_size=3, padding=2, dilation=2),
+                                       nn.BatchNorm2d(mid_ch_2),
+                                       nn.ReLU())
+        self.dil_conv2 = nn.Sequential(nn.Conv2d(out_ch, mid_ch_3, kernel_size=3, padding=3, dilation=3),
+                                       nn.BatchNorm2d(mid_ch_3),
+                                       nn.ReLU())
+        self.dil_conv3 = nn.Sequential(nn.Conv2d(out_ch, mid_ch_4, kernel_size=3, padding=4, dilation=4),
+                                       nn.BatchNorm2d(mid_ch_4),
+                                       nn.ReLU())
+        self.dil_conv4 = nn.Sequential(nn.Conv2d(out_ch, mid_ch_4, kernel_size=3, padding=5, dilation=5),
+                                       nn.BatchNorm2d(mid_ch_4),
+                                       nn.ReLU())
+
+        self.bn1 = nn.BatchNorm2d(out_ch)
+        self.ReLU = nn.ReLU()
+        self.conv2 = nn.Conv2d(out_ch, out_ch,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=False)
+
+    def forward(self, x):
+        if self.in_ch == self.out_ch:
+            residual = x
+        else:
+            x = self.tran_channels(x)
+            residual = x
+
+        x1 = self.conv33(x)
+        x2 = self.dil_conv1(x)
+        x3 = self.dil_conv2(x)
+        x4 = self.dil_conv3(x)
+        x5 = self.dil_conv4(x)
+
+        cat_x = torch.cat([x1, x2, x3, x4, x5], dim=1)
+
+        x = self.conv2(cat_x)
+        x = self.bn1(x)
+
+        x = x + residual
+        out = self.ReLU(x)
+
+        return out
+
 
 class Dilated_Conv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
-        mid_ch_1 = int(out_ch/2)
-        mid_ch_2 = int(out_ch/4)
-        mid_ch_3 = int(out_ch/8)
-        mid_ch_4 = int(out_ch/16)
+        mid_ch_1 = int(out_ch / 2)
+        mid_ch_2 = int(out_ch / 4)
+        mid_ch_3 = int(out_ch / 8)
+        mid_ch_4 = int(out_ch / 16)
 
         self.conv33 = nn.Sequential(nn.Conv2d(in_ch, mid_ch_1, kernel_size=3, padding=1),
                                     nn.BatchNorm2d(mid_ch_1),
@@ -81,13 +141,13 @@ class Dilated_Conv(nn.Module):
                                        nn.ReLU())
 
     def forward(self, x):
-        x = self.conv33(x)
-        x1 = self.dil_conv1(x)
-        x2 = self.dil_conv2(x1)
-        x3 = self.dil_conv3(x2)
-        x4 = self.dil_conv4(x3)
+        x1 = self.conv33(x)
+        x2 = self.dil_conv1(x)
+        x3 = self.dil_conv2(x)
+        x4 = self.dil_conv3(x)
+        x5 = self.dil_conv4(x)
 
-        return torch.cat([x, x1, x2, x3, x4], dim=1)
+        return torch.cat([x1, x2, x3, x4, x5], dim=1)
 
 class P_Dilated_Conv(nn.Module):
     def __init__(self, in_ch, out_ch):
@@ -283,15 +343,26 @@ class Out(nn.Module):
 class Fully_connect(nn.Module):
     def __init__(self, n_classes, H, W):
         super().__init__()
+        self.cls = nn.Sequential(nn.Conv2d(512, 256, kernel_size=3, stride=2, padding=1),
+                                 nn.BatchNorm2d(256),
+                                 nn.ReLU(),
+                                 nn.Conv2d(256, 128, kernel_size=3, stride=2, padding=1),
+                                 nn.BatchNorm2d(128),
+                                 nn.ReLU())
         self.Full = nn.Sequential(
-            nn.Linear(64 * H * W, 2048),
+            nn.Linear(8 * H * W, 256),
             nn.ReLU(),
-            nn.Linear(2048, 256),
+            nn.Linear(256, 32),
             nn.ReLU(),
-            nn.Linear(256, n_classes + 1)
+            nn.Linear(32, n_classes + 1)
         )
 
     def forward(self, x):
+        x = self.cls(x)
+        dim = 1
+        for d in x.size()[1:]:
+            dim = dim * d
+        x = x.view(-1, dim)
         out = self.Full(x)
 
         return out
